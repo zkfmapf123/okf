@@ -29,9 +29,13 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 
 ## 문서 구조
 1. YAML 프론트매터 (`---` 구분)
-   - 필수: `type`, `timestamp` (생성·최근 수정 시각, ISO 8601)
+   - 필수: `type`, `timestamp` (생성·최근 수정 시각, ISO 8601 정밀 시각 — 예: `2026-06-22T00:00:00Z`)
    - 권장: `title`, `description`, `resource`, `tags`
-   - 신선도·생명주기: `verified-at` (원본과 마지막 대조 일자), `status` (`active`/`deprecated`), `superseded-by` (대체 문서 경로), `freshness-window` (대조 주기 일수, 미지정 시 기본 30)
+   - 신선도·생명주기:
+     - `verified-at` — 원본과 마지막 대조 일자. ISO 8601 **날짜만** (예: `2026-06-22`)
+     - `status` — `active` | `deprecated`
+     - `superseded-by` — 대체 문서 경로 (Deprecation 시)
+     - `freshness-window` — 대조 주기 **정수 일수** (예: `30`). 미지정 시 기본 30
 2. 구조화된 마크다운 본문 (헤딩·표·리스트·코드블록 선호)
    - 관례 헤딩: `# Schema`, `# Examples`, `# Citations`
    - **Citations 는 "변질 의심 시 진위를 가리는 닻".** Reference/Decision 류는 사실상 필수.
@@ -45,8 +49,9 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 (모르는 type 도 거부하지 말고 일반 개념으로 처리.)
 
 ## 예약 파일
-- `index.md` 디렉토리 목차(점진적 공개). 개념 문서 아님.
+- `index.md` 디렉토리 목차(점진적 공개). 개념 문서 아님. **각 디렉토리에 하나**.
 - `log.md`   변경 이력. 최신이 위, 날짜는 ISO 8601 (YYYY-MM-DD).
+  - **위치는 KB 루트 단일 파일** (`~/.claude/kb/local/log.md`). 하위 디렉토리에 별도로 두지 않는다.
   - 이벤트 어휘: `Creation`(신규), `Update`(증분 갱신), `Correction`(오류 정정), `Verified-on`(원본과 대조 완료), `Deprecation`(폐기, `superseded-by` 와 함께).
 
 ## 검색·읽기 절차 (토큰 효율)
@@ -61,6 +66,7 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 ## 저장·갱신 절차
 모든 쓰기·갱신은 **단일 흐름**을 따른다: `AI 변경 diff 제시 → 사용자 승인 → 실행`.
 
+0. **선행 — KB 디렉토리 부재 시**: `~/.claude/kb/local/` 또는 하위 디렉토리가 없으면, 게이트 (a) 카드의 `📂 index.md 동기화` 라인에 `+ mkdir -p <경로>` 를 함께 표시하고 사용자 승인 한 번에 같이 처리한다. 별도 게이트 아님.
 1. 기본 저장 대상은 `~/.claude/kb/local/`. (common 직접 쓰기 금지)
 2. 경로를 정한다(경로가 곧 개념 ID).
 3. 같은 개념이 이미 있으면 **새로 만들지 말고 갱신**.
@@ -79,7 +85,10 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 모든 위험 행위(쓰기 · 갱신 · 외부 조회) = **AI 제안 → 사용자 승인 → 실행**.
 
 ### 게이트 1 — Error Propagation (잘못된 내용이 KB로 흘러들어감)
-- 트리거: 세션 종료 직전, 또는 지식성 결론이 KB 에 반영될 시점.
+- 트리거 (둘 중 하나):
+  - (a) **사용자가 저장을 요청** (예: "이거 저장해줘", "KB 에 정리해줘")
+  - (b) **AI 가 지식성 결론 발생을 감지해 자발 제안** (결정·절차·참고자료가 정리된 시점, 대화 중 또는 답변 직후)
+  - ※ "세션 종료 직전" 은 Claude 가 관측 불가하므로 사용하지 않는다.
 - AI: 무엇을 추가/수정하는지 **diff 요약 + 출처** 를 만들어 제시.
 - 사용자: diff 검토 → 승인/거부/수정 지시.
 - 결과: 승인 시에만 파일 쓰기 + `log.md` 한 줄.
@@ -193,6 +202,17 @@ KB 에 반영할까요?
 - **fallback 보장.** ollama 미설치 / 모델 부재 / 응답 실패 → 자동 default 회귀.
 - **매번 묻는다.** 세션 단위 기억 없음.
 - **ollama 모델이 0개면 질문 자체를 건너뛴다.** 곧바로 default 로 진행.
+- **체크박스 질문은 `AskUserQuestion` 도구로 호출한다.** 인라인 텍스트 질문 금지.
+
+### 도구 경로 해석
+플러그인이 로컬 개발 / 마켓플레이스 설치 / 다른 위치 어디에 있든 Claude 는 다음 우선순위로 `okf_read.py` 경로를 해결한다. 세션 내 첫 호출 시 결정, 이후 재사용.
+1. 환경 변수 `${CLAUDE_PLUGIN_ROOT}` 가 설정돼 있으면 → `${CLAUDE_PLUGIN_ROOT}/tools/okf_read.py`
+2. 마켓플레이스 설치 캐시 → `~/.claude/plugins/cache/*/okf-knowledge-base/*/tools/okf_read.py` 중 가장 최신 버전 디렉토리. Bash 로:
+   ```bash
+   ls -t ~/.claude/plugins/cache/*/okf-knowledge-base/*/tools/okf_read.py 2>/dev/null | head -1
+   ```
+3. 로컬 개발 (현재 작업 디렉토리가 플러그인 repo 인 경우) → `./tools/okf_read.py`
+4. 모두 실패 → 사용자에게 경로 안내 요청.
 
 ### 흐름
 1. **사전 발견 (질문 없음)**: AI 가 먼저 `python <plugin-root>/tools/okf_read.py --list-models` 실행.
@@ -225,10 +245,10 @@ KB 에 반영할까요?
 | 명령 | 출력 (JSON) |
 |---|---|
 | `--list-models` | `{"ollama_alive": bool, "available": [<model>...]}` |
-| `--read <path>` | `{"frontmatter": "<raw>", "body": "<raw>", "model_used": "default"}` |
-| `--read <path> --model <name>` | `{"frontmatter": "<raw>", "body_summary": "<요약>", "model_used": "<name>"}` 또는 실패 시 default 응답 + `warning` 필드 |
+| `--read <path>` | `{"frontmatter": "<raw>", "frontmatter_parsed": {...} \| null, "body": "<raw>", "model_used": "default"}` |
+| `--read <path> --model <name>` | `{"frontmatter": "<raw>", "frontmatter_parsed": {...} \| null, "body_summary": "<요약>", "model_used": "<name>"}` 또는 실패 시 default 응답 + `warning` 필드 |
 
-→ frontmatter 는 항상 raw 문자열로 분리되어 반환. Claude 가 직접 파싱하여 안전 게이트 필드를 추출한다.
+→ frontmatter 는 항상 raw 문자열 + 파싱된 dict 두 형태로 반환. 안전 게이트 필드(`timestamp`/`verified-at`/`freshness-window`/`resource`/`status`) 는 `frontmatter_parsed` 에서 직접 읽는다. 파싱 실패 시 `null` 이며, 이 경우 Claude 가 raw 를 직접 파싱한다.
 
 ## 하지 말 것 (Anti-patterns)
 - `~/.claude/kb/common/` 을 직접 수정·삭제하지 않는다.

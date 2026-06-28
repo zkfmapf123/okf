@@ -29,6 +29,42 @@ frontmatter 는 이미 제외된 상태이다.
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
+def parse_frontmatter_simple(fm_raw):
+    """Parse OKF frontmatter without external deps.
+
+    Handles the common OKF shape: scalar `key: value`, quoted strings,
+    and flat inline lists `key: [a, b, c]`. Returns dict or None on
+    failure / empty input. Multi-line scalars (`>` or `|`) and nested
+    mappings are not supported — callers can fall back to the raw
+    string for those rare cases.
+    """
+    if not fm_raw or not fm_raw.strip():
+        return None
+    result = {}
+    for line in fm_raw.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if ":" not in stripped:
+            continue
+        key, _, value = stripped.partition(":")
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+        elif value.startswith("[") and value.endswith("]"):
+            inner = value[1:-1].strip()
+            value = [v.strip().strip('"').strip("'") for v in inner.split(",")] if inner else []
+        elif value == "":
+            value = None
+        result[key] = value
+    return result or None
+
+
 def ollama_available():
     return shutil.which("ollama") is not None
 
@@ -84,19 +120,20 @@ def cmd_read(path, model):
         return {"error": f"file not found: {path}"}
     text = p.read_text(encoding="utf-8")
     fm, body = split_frontmatter(text)
+    fm_parsed = parse_frontmatter_simple(fm)
+
+    base = {
+        "path": str(p),
+        "frontmatter": fm,
+        "frontmatter_parsed": fm_parsed,
+    }
 
     if not model or model == "default":
-        return {
-            "path": str(p),
-            "frontmatter": fm,
-            "body": body,
-            "model_used": "default",
-        }
+        return {**base, "body": body, "model_used": "default"}
 
     if not ollama_available():
         return {
-            "path": str(p),
-            "frontmatter": fm,
+            **base,
             "body": body,
             "model_used": "default",
             "warning": "ollama not installed; fell back to default",
@@ -106,27 +143,20 @@ def cmd_read(path, model):
         summary = summarize_with_ollama(body, model)
     except subprocess.CalledProcessError as e:
         return {
-            "path": str(p),
-            "frontmatter": fm,
+            **base,
             "body": body,
             "model_used": "default",
             "warning": f"ollama call failed (exit {e.returncode}); fell back to default",
         }
     except subprocess.TimeoutExpired:
         return {
-            "path": str(p),
-            "frontmatter": fm,
+            **base,
             "body": body,
             "model_used": "default",
             "warning": "ollama call timed out; fell back to default",
         }
 
-    return {
-        "path": str(p),
-        "frontmatter": fm,
-        "body_summary": summary,
-        "model_used": model,
-    }
+    return {**base, "body_summary": summary, "model_used": model}
 
 
 def main():
