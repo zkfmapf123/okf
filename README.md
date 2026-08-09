@@ -38,6 +38,13 @@ ln -s ~/.claude/plugins/local/okf/skills/okf-knowledge-base \
 
 자세한 형식·예시는 [`skills/okf-knowledge-base/SKILL.md`](skills/okf-knowledge-base/SKILL.md) 참조.
 
+### 슬래시 커맨드
+
+| 커맨드 | 동작 |
+|---|---|
+| `/kb [질문]` | KB 먼저 검색 후 근거 기반 답변. 없으면 `KB 없음` 표시 후 일반 답변. 이후 대화의 KB 오류·신규 지식 후보를 추적 |
+| `/kb-end` | 현재 KB 질문 종료. 추적된 수정/신규 후보를 스킬 게이트(diff+승인)로 넘겨 반영 |
+
 ## Layout
 
 ```
@@ -45,9 +52,14 @@ ln -s ~/.claude/plugins/local/okf/skills/okf-knowledge-base \
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
+├── commands/
+│   ├── kb.md          # /kb [질문] — KB 검색 후 답변
+│   └── kb-end.md      # /kb-end   — 세션 종료, 수정/신규 후보를 스킬로 전달
 ├── skills/
 │   └── okf-knowledge-base/
 │       └── SKILL.md
+├── tools/
+│   └── okf_read.py    # ollama 읽기 위임 (선택)
 ├── CLAUDE.md
 └── README.md
 ```
