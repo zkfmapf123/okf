@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "OKF (Open Knowledge Format) skills for Claude Code.",
-    "version": "0.3.0"
+    "version": "0.3.1"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "url": "https://github.com/zkfmapf123/okf.git"
       },
       "description": "Store, update, and search knowledge as YAML+Markdown bundles under ~/.claude/kb/ (common/ read-only, local/ for personal writes).",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "strict": true
     }
   ]

@@ -1,7 +1,7 @@
 {
   "name": "okf-knowledge-base",
   "description": "Open Knowledge Format (OKF) skill for Claude Code: store, update, and search team/personal knowledge as YAML+Markdown bundles under ~/.claude/kb/.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "zkfmapf123",
     "email": "zkfmapf999@gmail.com"

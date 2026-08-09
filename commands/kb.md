@@ -8,9 +8,11 @@ description: KB 검색 후 답변 (~/.claude/kb/ 조회, 없으면 일반 답변
 
 1. **`okf-knowledge-base` 스킬을 먼저 로드**하고, 검색·읽기는 스킬의 절차를 그대로 따른다.
    (index.md → frontmatter → 본문 lazy loading, 신선도 경고 포함)
-2. `~/.claude/kb/common/` 과 `~/.claude/kb/local/` 을 조회.
-   - `index.md` 먼저 확인
-   - 질문 키워드로 grep (파일명·frontmatter·본문)
+2. `~/.claude/kb/common/` 과 `~/.claude/kb/local/` 을 조회. **턴 최소화 원칙**:
+   - grep **1회**로 끝낸다. 동의어·영문 변형을 한 명령에 담는다:
+     `grep -rilE "<kw1>|<kw2>|<영문kw>" ~/.claude/kb/` (파일명·본문 동시 매치)
+   - 매치 시 → 해당 파일만 read (frontmatter 포함). 추가 탐색 금지.
+   - 미스 시 → `index.md` 1회만 확인 후 최종 판단. 그 외 디렉토리 순회·재탐색 금지.
 3. 매치가 있으면:
    - 관련 파일 읽고 근거 기반 답변
    - `timestamp`/`verified-at` 가 `freshness-window`(기본 30일) 초과면 스킬 규칙대로 신선도 경고를 함께 표시
