@@ -7,7 +7,7 @@ description: KB 검색 후 답변 (~/.claude/kb/ 조회, 없으면 일반 답변
 ## 절차
 
 1. **`okf-knowledge-base` 스킬을 먼저 로드**하고, 검색·읽기는 스킬의 절차를 그대로 따른다.
-   (index.md → frontmatter → 본문 lazy loading, 신선도 경고, ollama 위임 흐름 포함)
+   (index.md → frontmatter → 본문 lazy loading, 신선도 경고 포함)
 2. `~/.claude/kb/common/` 과 `~/.claude/kb/local/` 을 조회.
    - `index.md` 먼저 확인
    - 질문 키워드로 grep (파일명·frontmatter·본문)
