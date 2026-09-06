@@ -30,7 +30,9 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 ## 문서 구조
 1. YAML 프론트매터 (`---` 구분)
    - 필수: `type`, `timestamp` (생성·최근 수정 시각, ISO 8601 정밀 시각 — 예: `2026-06-22T00:00:00Z`)
-   - 권장: `title`, `description`, `resource`, `tags`
+   - 권장: `title`, `description`, `resource`
+   - `tags` — 식별자 배열 (서비스명·에러코드·계정명 등 정확 토큰). 사실상 필수. 예: `[aws, alb, 504, keep-alive]`
+   - `aliases` — 사용자가 실제로 물어볼 법한 **서술형 표현** 배열. 서술형 질문의 grep 히트용. 예: `[서버 갑자기 죽음, 어떤 컨테이너가 범인]`. 저장 시 AI 가 후보 제안, 이후 미스 환류로 누적.
    - `related` — 관련 개념 ID 배열 (예: `[/aws/alb-timeout, /aws/eks-alb-ingress]`). 단방향, 역참조는 grep. 없으면 생략.
    - 신선도·생명주기:
      - `verified-at` — 원본과 마지막 대조 일자. ISO 8601 **날짜만** (예: `2026-06-22`)
@@ -57,7 +59,7 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 
 ## 검색·읽기 절차 (토큰 효율)
 1. 먼저 `index.md` 로 무엇이 있는지 파악.
-2. 프론트매터(type/title/description/tags)로 후보를 좁힘.
+2. 프론트매터(type/title/description/tags/aliases)로 후보를 좁힘. 본문 매치보다 프론트매터 매치를 우선.
 3. 관련 개념 문서만 선택적으로 연다 (lazy loading). 히트 문서의 `related` 로 1홉 이웃만 확장, 본문은 열지 않는다.
 4. 번들 전체를 통째로 컨텍스트에 넣지 않는다.
 5. **신선도 확인 (불변)**: 문서를 사용해 답변하기 전 `timestamp` / `verified-at` 가 `freshness-window` (미지정 시 30일)를 넘었으면 사용자에게 먼저 경고:
@@ -70,7 +72,7 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 0. **선행 — KB 디렉토리 부재 시**: `~/.claude/kb/local/` 또는 하위 디렉토리가 없으면, 게이트 (a) 카드의 `📂 index.md 동기화` 라인에 `+ mkdir -p <경로>` 를 함께 표시하고 사용자 승인 한 번에 같이 처리한다. 별도 게이트 아님.
 1. 기본 저장 대상은 `~/.claude/kb/local/`. (common 직접 쓰기 금지)
 2. 경로를 정한다(경로가 곧 개념 ID).
-3. **저장 전 grep 1회** — 제목·tags 키워드로 `grep -rilE "<kw1>|<kw2>" ~/.claude/kb/` 를 돌려 (a) 같은 개념 문서 → 새로 만들지 말고 **갱신**, (b) 관련 문서 → `related:` 후보로 카드에 제시. 중복 방지와 관계 연결을 이 한 번으로 해결한다.
+3. **저장 전 grep 1회** — 제목·tags·aliases 키워드로 `grep -rilE "<kw1>|<kw2>" ~/.claude/kb/` 를 돌려 (a) 같은 개념 문서 → 새로 만들지 말고 **갱신**, (b) 관련 문서 → `related:` 후보로 카드에 제시. 중복 방지와 관계 연결을 이 한 번으로 해결한다.
 4. 변경 내용을 **diff 요약 + 출처(Citations)** 와 함께 사용자에게 제시하고 승인을 받는다.
    - "저장할까요?" 만 묻지 않는다. "이 3줄을 추가하고 표의 이 부분을 수정합니다. 저장할까요?" 처럼 **재료를 함께 준다.**
 5. 승인 시에만 파일을 쓰고, `log.md` 에 이벤트(`Creation`/`Update`/`Correction`/`Deprecation`) 한 줄 기록.
@@ -132,6 +134,8 @@ OKF는 지식을 "YAML 프론트매터가 붙은 마크다운 파일들의 디�
 📄 신규: <KB-상대경로>
 type: <type>
 요약: <한 줄 설명>
+tags: [<식별자>, ...]
+aliases: [<서술형 표현>, ...]  ← AI 제안, 사용자 수정 가능
 related: [<개념 ID>, ...] 또는 "없음"
 출처(Citations): <URL 또는 "없음">
 
@@ -216,6 +220,7 @@ title: 표준 VPC 구성
 description: 팀 표준 VPC 네트워크 레이아웃과 서브넷 분리 원칙.
 resource: https://console.aws.amazon.com/vpc/
 tags: [aws, network, vpc]
+aliases: [표준 서브넷 구성, VPC 어떻게 나눠]
 related: [/runbooks/prod-deploy]
 timestamp: 2026-06-22T00:00:00Z
 verified-at: 2026-06-22
@@ -244,6 +249,7 @@ type: Runbook
 title: RDS 장애 조치 대응
 description: RDS Multi-AZ 장애 발생 시 대응 절차.
 tags: [aws, rds, incident]
+aliases: [DB 커넥션 타임아웃 급증, RDS 죽었을 때]
 related: [/aws/orders-db]
 timestamp: 2026-06-22T00:00:00Z
 ---
