@@ -20,6 +20,24 @@ A Claude Code plugin that stores, updates, and searches knowledge as plain **YAM
 
 The `okf-knowledge-base` skill also activates automatically when a conversation produces knowledge worth saving — it always asks with a diff before writing anything.
 
+## Auto search (optional, hook)
+
+To have every prompt check the KB first without typing `/kb`, add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash ~/.claude/plugins/marketplaces/okf/hooks/kb-search.sh" } ] }
+    ]
+  }
+}
+```
+
+- Script: [`hooks/kb-search.sh`](hooks/kb-search.sh). Adjust the path to where the plugin is installed (requires `jq`).
+- Read-only. On a hit it injects up to 5 candidate paths and starts KB-session tracking. Saving still goes through `/kb-end`.
+- Slash commands and prompts under 15 chars are skipped.
+
 ## How it works
 
 - **Location**: `~/.claude/kb/local/` (yours) and `~/.claude/kb/common/` (team, read-only)
@@ -28,6 +46,8 @@ The `okf-knowledge-base` skill also activates automatically when a conversation 
 - **Freshness**: docs older than their `freshness-window` (default 30 days) trigger a warning before being used
 
 Full format spec and examples: [`skills/okf-knowledge-base/SKILL.md`](skills/okf-knowledge-base/SKILL.md)
+
+Diagrams: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## License
 

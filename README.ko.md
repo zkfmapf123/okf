@@ -20,6 +20,24 @@
 
 대화 중 저장할 만한 지식이 생기면 `okf-knowledge-base` 스킬이 자동으로 발동합니다 — 쓰기 전에 항상 diff 를 보여주고 승인을 받습니다.
 
+## 자동 검색 (선택, hook)
+
+`/kb` 없이도 매 질문마다 KB를 먼저 훑게 하려면 `~/.claude/settings.json` 에 추가:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash ~/.claude/plugins/marketplaces/okf/hooks/kb-search.sh" } ] }
+    ]
+  }
+}
+```
+
+- 스크립트: [`hooks/kb-search.sh`](hooks/kb-search.sh). 경로는 플러그인이 설치된 위치로 맞추세요 (`jq` 필요).
+- 읽기만 자동. 히트 시 후보 경로 5개를 주입하고 KB-세션 추적을 켭니다. 저장은 여전히 `/kb-end`.
+- 슬래시 커맨드·15자 미만 프롬프트는 건너뜁니다.
+
 ## 동작 원리
 
 - **위치**: `~/.claude/kb/local/` (개인), `~/.claude/kb/common/` (팀 공용, 읽기 전용)
@@ -28,6 +46,8 @@
 - **신선도**: `freshness-window`(기본 30일) 지난 문서는 사용 전 경고
 
 형식 상세와 예시: [`skills/okf-knowledge-base/SKILL.md`](skills/okf-knowledge-base/SKILL.md)
+
+동작 구조 그림: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## 라이선스
 
